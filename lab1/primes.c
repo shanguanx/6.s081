@@ -23,23 +23,34 @@ main(int argc, char *argv[]) {
     while (1) {
         int a[100];
         //从左侧读入
-        int n;
+        int n = 0;
         pipe(p[++pos]);
-        for (n = 0;; n++) {
-            read(p[pos-1][0], &a[n], 4);
-            if (a[n] == 0)break;
-            if (a[n] % a[0] == 0)continue;
-            write(p[pos][1], &a[n], 4);
+        read(p[pos - 1][0], &a[n++], 4);
+        if (a[0] == 97) {
+            close(p[pos - 1][0]);
+            close(p[pos][1]);
+            close(p[pos][0]);
+            break;
         }
-        //close read
-        close(p[pos-1][0]);
-        //close Write
-        close(p[pos][1]);
         printf("prime %d\n", a[0]);
         if (a[0] == 97)break;
         if (fork() == 0) {
+            //close parent read
+            close(p[pos][0]);
+            //从左侧读入
+            while (1) {
+                read(p[pos - 1][0], &a[n], 4);
+                if (a[n] == 0)break;
+                if (a[n] % a[0] == 0)continue;
+                write(p[pos][1], &a[n], 4);
+            }
+            //close right read
+            close(p[pos - 1][0]);
+            //close left Write
+            close(p[pos][1]);
             exit(0);
         }
+        close(p[pos][1]);
     }
     exit(0);
 }
