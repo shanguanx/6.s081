@@ -1,57 +1,52 @@
 #include "kernel/types.h"
+#include "kernel/stat.h"
 #include "user/user.h"
 
-void is_prime(int pipe_read) {
-    int prime;
-    if(read(pipe_read, &prime, sizeof(int)) <= 0) {
-        fprintf(1, "termination!\n");
-        exit(0);
-    }
 
-    int p[2];
-    if(pipe(p) < 0) {
-        fprintf(2, "create pipe failed\n");
+int
+main(int argc, char *argv[]) {
+    if (argc >= 2) {
+        fprintf(2, "usage: primes\n");
         exit(1);
     }
 
-    if(fork() == 0) {
-        close(p[1]);
-        is_prime(p[0]);
+    int p[40][2];
+    int pos = 0;
+    pipe(p[pos]);
+
+    for (int i = 2; i <= 35; i++) {
+        write(p[pos][1], &i, 4);
     }
+    close(p[pos][1]);
 
-    close(p[0]);
-    fprintf(1, "prime %d\n", prime);
-
-    int judge;
-    while(read(pipe_read, &judge, sizeof(int)) > 0) {
-        if(judge % prime == 0) 
-            continue;
-        write(p[1], &judge, sizeof(int));
-    }
-    close(p[1]);
-    wait((int*)0);
-    exit(0);
-}
-
-int main(int argc, char *argv[]) {
-    int p[2];
-    int start = 2, end = 35;
-
-    if(pipe(p) < 0) {
-        fprintf(2, "create pipe failed\n");
-        exit(1);
-    }
-
-    if(fork() == 0) {
-        close(p[1]);
-        is_prime(p[0]);
-    }else {
-        close(p[0]);
-        for(int i = start; i <= end; ++i) {
-            write(p[1], &i, sizeof(int));
+    while (1) {
+        int a[40];
+        //从左侧读入
+        int n;
+        for (n = 0;; n++) {
+            read(p[pos][0], &a[n], 4);
+            if (a[n] == 0)break;
         }
-        close(p[1]);
-        wait((int*)0);
+        //child close read
+        close(p[pos][0]);
+
+        printf("prime %d\n", a[0]);
+        if (a[0] == 31)break;
+        pipe(p[++pos]);
+        if (fork() == 0) {
+            //向右侧写入 //parnt close read
+            close(p[pos][0]);
+            for (int i = 1; i < n; ++i) {
+                if (a[i] % a[0] == 0)continue;
+                write(p[pos][1], &a[i], 4);
+            }
+            //parnt close write
+            close(p[pos][1]);
+            exit(0);
+        } else {
+            //child close write
+            close(p[pos][1]);
+        }
     }
     exit(0);
 }
